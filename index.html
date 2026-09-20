@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<!-- saved from url=(0188)file:///private/var/folders/57/dk8k8n6x24n77x6c1h53ntnw0000gn/T/remote-file-preview-21A8AA5E-1837-446D-9479-272A674800FB/BF4B63F9-931F-4406-951D-4A4A63A4C620/firebase_latest_dashboard.html -->
+<html lang="th" data-theme="light"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP32 Realtime Dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: rgba(15, 28, 47, .84);
+      --panel-strong: #101f34;
+      --line: rgba(148, 163, 184, .16);
+      --text: #edf4ff;
+      --muted: #8fa1b8;
+      --temp: #ff6470;
+      --humi: #49a8ff;
+      --light: #ffc857;
+      --green: #35d28a;
+      --red: #ff6978;
+      --shadow: 0 18px 48px rgba(0, 0, 0, .24);
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f2f6fb;
+      --panel: rgba(255, 255, 255, .92);
+      --panel-strong: #ffffff;
+      --line: rgba(90, 105, 125, .18);
+      --text: #172235;
+      --muted: #69788e;
+      --shadow: 0 16px 38px rgba(63, 79, 101, .11);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 8% -5%, rgba(32, 113, 255, .23), transparent 32%),
+        radial-gradient(circle at 96% 0%, rgba(0, 204, 153, .12), transparent 28%),
+        linear-gradient(145deg, #06101d, #091629 55%, #07111f);
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .2;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 38px 38px;
+      mask-image: linear-gradient(to bottom, black, transparent 72%);
+    }
+
+    :root[data-theme="light"] body {
+      background:
+        radial-gradient(circle at 8% -5%, rgba(51, 127, 255, .16), transparent 32%),
+        radial-gradient(circle at 96% 0%, rgba(0, 184, 148, .11), transparent 28%),
+        linear-gradient(145deg, #f7faff, #eef4fb 58%, #f5f8fc);
+    }
+
+    :root[data-theme="light"] body::before {
+      opacity: .45;
+      background-image:
+        linear-gradient(rgba(55, 75, 105, .055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(55, 75, 105, .055) 1px, transparent 1px);
+    }
+
+    .shell {
+      position: relative;
+      width: min(1440px, calc(100% - 34px));
+      margin: 0 auto;
+      padding: 24px 0 36px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 13px; }
+
+    .brand-icon {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 14px;
+      background: linear-gradient(145deg, #1d72ff, #0bbca0);
+      box-shadow: 0 10px 28px rgba(20, 112, 230, .3);
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    h1 { margin: 0; font-size: clamp(20px, 2.5vw, 29px); letter-spacing: -.5px; }
+    .subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+
+    .connection {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 13px;
+      color: #c5d2e3;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(8, 18, 32, .66);
+      font-size: 12px;
+      font-weight: 700;
+      backdrop-filter: blur(10px);
+    }
+
+    .connection-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #708096;
+    }
+
+    .connection.connecting .connection-dot { background: #ffc857; animation: pulse 1s infinite; }
+    .connection.live .connection-dot { background: var(--green); box-shadow: 0 0 0 5px rgba(53,210,138,.13); }
+    .connection.error .connection-dot { background: var(--red); box-shadow: 0 0 0 5px rgba(255,105,120,.12); }
+
+    :root[data-theme="light"] .connection { color: #46566c; background: rgba(255, 255, 255, .82); }
+
+    @keyframes pulse { 50% { opacity: .3; } }
+
+    .hero-panel {
+      margin-bottom: 16px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(19, 38, 64, .92), rgba(11, 27, 47, .82));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    :root[data-theme="light"] .hero-panel {
+      background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(244,249,255,.9));
+    }
+
+    .hero-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .device-label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .device-name { margin-top: 4px; font-size: 18px; font-weight: 750; }
+    .path { margin-top: 4px; color: #73b8ff; font: 12px Consolas, monospace; }
+
+    .time-block { text-align: right; }
+    .time-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .time-note { margin-top: 4px; color: var(--muted); font-size: 11px; }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .metric-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 176px;
+      padding: 17px 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .metric-card::after {
+      content: "";
+      position: absolute;
+      top: -75px;
+      right: -60px;
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--soft), transparent 70%);
+      pointer-events: none;
+    }
+
+    .metric-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .metric-title { display: flex; align-items: center; gap: 9px; color: #b7c5d8; font-size: 13px; font-weight: 700; }
+    .metric-icon { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 10px; color: var(--color); background: var(--soft); font-size: 15px; }
+    .trend { min-height: 24px; padding: 4px 7px; border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.045); font-size: 10px; }
+    .trend.up { color: #52dea0; background: rgba(53,210,138,.1); }
+    .trend.down { color: #ff8791; background: rgba(255,105,120,.1); }
+
+    .metric-value {
+      margin-top: 17px;
+      font-size: clamp(35px, 4.4vw, 51px);
+      font-weight: 760;
+      line-height: 1;
+      letter-spacing: -1.8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-value.changed { animation: valueFlash .55s ease; }
+    @keyframes valueFlash { 45% { color: var(--color); text-shadow: 0 0 22px var(--soft); } }
+    .metric-unit { margin-left: 5px; color: #8fa1b8; font-size: 15px; font-weight: 600; letter-spacing: 0; }
+    .metric-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 15px; color: var(--muted); font-size: 10px; }
+    .metric-range { color: #aebbd0; }
+
+    :root[data-theme="light"] .metric-title { color: #4e5f75; }
+    :root[data-theme="light"] .metric-range { color: #586a82; }
+    :root[data-theme="light"] .trend { background: rgba(70, 88, 112, .07); }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .chart-card {
+      min-width: 0;
+      padding: 17px 18px 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .chart-card:first-child { grid-column: span 2; }
+    .chart-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .chart-head h2 { margin: 0; font-size: 15px; }
+    .chart-head p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+    .chart-last { color: var(--color); font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; }
+
+    .chart-box { position: relative; height: 245px; }
+    .chart-card:first-child .chart-box { height: 285px; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .tooltip {
+      position: absolute;
+      z-index: 4;
+      min-width: 128px;
+      padding: 8px 10px;
+      color: #f7fbff;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 9px;
+      background: rgba(3, 10, 19, .94);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      font-size: 10px;
+      line-height: 1.5;
+      pointer-events: none;
+      transform: translate(-50%, calc(-100% - 12px));
+    }
+
+    .tooltip strong { display: block; color: var(--color); font-size: 13px; }
+
+    details {
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(8, 19, 34, .72);
+    }
+
+    summary { padding: 13px 16px; color: #b6c4d6; cursor: pointer; font-size: 12px; font-weight: 700; }
+    .settings { display: grid; grid-template-columns: 2fr 1fr 1fr 150px 110px auto; gap: 11px; align-items: end; padding: 2px 16px 16px; }
+    label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; font-weight: 700; }
+    input, select, button { min-height: 39px; border-radius: 9px; font: inherit; }
+    input, select { width: 100%; padding: 8px 10px; color: var(--text); border: 1px solid rgba(148,163,184,.25); background: #071322; outline: none; }
+    input:focus, select:focus { border-color: #398cff; box-shadow: 0 0 0 3px rgba(57,140,255,.12); }
+    button { padding: 8px 15px; color: #fff; border: 0; background: linear-gradient(135deg, #237cff, #10ac98); cursor: pointer; font-weight: 750; }
+
+    :root[data-theme="light"] details { background: rgba(255,255,255,.84); }
+    :root[data-theme="light"] summary { color: #46566c; }
+    :root[data-theme="light"] input,
+    :root[data-theme="light"] select { color: #172235; border-color: rgba(90,105,125,.24); background: #fff; }
+
+    .note { margin-top: 13px; color: var(--muted); text-align: center; font-size: 10px; }
+    .hidden { display: none !important; }
+
+    @media (max-width: 900px) {
+      .metrics { grid-template-columns: 1fr; }
+      .settings { grid-template-columns: 1fr 1fr; }
+      .settings > div:first-child { grid-column: span 2; }
+      .settings button { width: 100%; }
+    }
+
+    @media (max-width: 650px) {
+      .shell { width: min(100% - 18px, 1440px); padding-top: 14px; }
+      header, .hero-row { align-items: flex-start; flex-direction: column; }
+      .connection { align-self: stretch; justify-content: center; }
+      .time-block { text-align: left; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-card:first-child { grid-column: auto; }
+      .chart-box, .chart-card:first-child .chart-box { height: 225px; }
+      .settings { grid-template-columns: 1fr; }
+      .settings > div:first-child { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <div class="brand-icon">IoT</div>
+        <div>
+          <h1>ESP32 Realtime Dashboard</h1>
+          <p class="subtitle">Firebase Realtime Database • อัปเดตอัตโนมัติ</p>
+        </div>
+      </div>
+      <div id="connection" class="connection live" role="status" aria-live="polite">
+        <span class="connection-dot"></span>
+        <span id="connectionText">ออนไลน์ • ตรวจทุก 2 วินาที</span>
+      </div>
+    </header>
+
+    <section class="hero-panel">
+      <div class="hero-row">
+        <div>
+          <div class="device-label">Device</div>
+          <div id="deviceName" class="device-name">ESP32</div>
+          <div id="devicePath" class="path">/lab/esp32/latest</div>
+        </div>
+        <div class="time-block">
+          <div id="dataTime" class="time-value">20/09/2569 13:05:40</div>
+          <div id="dataAge" class="time-note">ข้อมูลเมื่อ 3 วินาทีที่แล้ว</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="ค่าล่าสุด">
+      <article class="metric-card" style="--color:var(--temp);--soft:rgba(255,100,112,.13)">
+        <div class="metric-head">
+          <div class="metric-title"><span class="metric-icon">°</span>อุณหภูมิ</div>
+          <span id="tempTrend" class="trend up">▲ 2.41</span>
+        </div>
+        <div id="tempValue" class="metric-value changed">33.40<span class="metric-unit">°C</span></div>
+        <div class="metric-foot"><span>temp</span><span id="tempRange" class="metric-range">ต่ำสุด 25.58 · สูงสุด 34.19</span></div>
+      </article>
+
+      <article class="metric-card" style="--color:var(--humi);--soft:rgba(73,168,255,.13)">
+        <div class="metric-head">
+          <div class="metric-title"><span class="metric-icon">%</span>ความชื้นสัมพัทธ์</div>
+          <span id="humiTrend" class="trend up">▲ 0.80</span>
+        </div>
+        <div id="humiValue" class="metric-value changed">57.74<span class="metric-unit">%</span></div>
+        <div class="metric-foot"><span>humi</span><span id="humiRange" class="metric-range">ต่ำสุด 55.02 · สูงสุด 77.07</span></div>
+      </article>
+
+      <article class="metric-card" style="--color:var(--light);--soft:rgba(255,200,87,.14)">
+        <div class="metric-head">
+          <div class="metric-title"><span class="metric-icon">☀</span>ความเข้มแสง</div>
+          <span id="lightTrend" class="trend down">▼ 798.6</span>
+        </div>
+        <div id="lightValue" class="metric-value changed">114.7<span class="metric-unit">lx</span></div>
+        <div class="metric-foot"><span>light</span><span id="lightRange" class="metric-range">ต่ำสุด 114.7 · สูงสุด 993.1</span></div>
+      </article>
+    </section>
+
+    <section class="charts-grid" aria-label="กราฟข้อมูลแบบต่อเนื่อง">
+      <article class="chart-card" style="--color:var(--temp)">
+        <div class="chart-head"><div><h2>อุณหภูมิ</h2><p>ข้อมูลสะสมตั้งแต่เปิดหน้าเว็บ</p></div><span id="tempChartLast" class="chart-last">33.40 °C</span></div>
+        <div class="chart-box"><canvas id="tempChart" width="2804" height="570"></canvas><div id="tempTooltip" class="tooltip hidden" style="left: 1119.4px; top: 140.922px;"><strong>29.47 °C</strong><span>20/09/2569 13:05:00</span></div></div>
+      </article>
+      <article class="chart-card" style="--color:var(--humi)">
+        <div class="chart-head"><div><h2>ความชื้นสัมพัทธ์</h2><p>ข้อมูลสะสมตั้งแต่เปิดหน้าเว็บ</p></div><span id="humiChartLast" class="chart-last">57.74 %</span></div>
+        <div class="chart-box"><canvas id="humiChart" width="1350" height="490"></canvas><div id="humiTooltip" class="tooltip hidden" style="left: 605px; top: 188.562px;"><strong>58.45 %</strong><span>20/09/2569 13:04:30</span></div></div>
+      </article>
+      <article class="chart-card" style="--color:var(--light)">
+        <div class="chart-head"><div><h2>ความเข้มแสง</h2><p>ข้อมูลสะสมตั้งแต่เปิดหน้าเว็บ</p></div><span id="lightChartLast" class="chart-last">114.7 lx</span></div>
+        <div class="chart-box"><canvas id="lightChart" width="1350" height="490"></canvas><div id="lightTooltip" class="tooltip hidden" style="left: 416.6px; top: 75.1588px;"><strong>774.0 lx</strong><span>20/09/2569 13:04:50</span></div></div>
+      </article>
+    </section>
+
+    <p class="note">แสดงข้อมูลสูงสุด 120 จุด • เชื่อมต่อ Firebase อัตโนมัติ • หน้า Dashboard อ่านข้อมูลอย่างเดียว</p>
+  </main>
+
+  <script>
+    'use strict';
+
+    const FIREBASE_URL = 'https://iot-000-760f8-default-rtdb.asia-southeast1.firebasedatabase.app';
+    const FIREBASE_PATH = '/lab/esp32/latest';
+    const SMOOTH_CHART = true;
+
+    const metrics = {
+      temp: { color: '#ff6470', fill: 'rgba(255,100,112,.18)', unit: '°C', decimals: 2 },
+      humi: { color: '#49a8ff', fill: 'rgba(73,168,255,.18)', unit: '%', decimals: 2 },
+      light: { color: '#ffc857', fill: 'rgba(255,200,87,.18)', unit: 'lx', decimals: 1 }
+    };
+
+    const state = {
+      current: {},
+      samples: [],
+      lastSignature: '',
+      lastDataTime: null,
+      source: null,
+      pollTimer: null,
+      reconnectTimer: null,
+      chartModels: {},
+      mode: 'connecting'
+    };
+
+    const ids = [
+      'connection', 'connectionText', 'dataTime', 'dataAge', 'deviceName', 'devicePath',
+      'tempValue', 'tempTrend', 'tempRange', 'tempChart',
+      'tempTooltip', 'tempChartLast', 'humiValue', 'humiTrend', 'humiRange', 'humiChart',
+      'humiTooltip', 'humiChartLast', 'lightValue', 'lightTrend', 'lightRange', 'lightChart',
+      'lightTooltip', 'lightChartLast'
+    ];
+    const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+
+    function setConnection(text, mode) {
+      state.mode = mode;
+      el.connectionText.textContent = text;
+      el.connection.className = `connection ${mode}`;
+    }
+
+    function updateDeviceIdentity() {
+      const parts = FIREBASE_PATH.split('/').filter(Boolean);
+      const latestIndex = parts.lastIndexOf('latest');
+      const device = latestIndex > 0 ? parts[latestIndex - 1] : parts.at(-1) || 'device';
+      el.deviceName.textContent = device.toUpperCase();
+      el.devicePath.textContent = FIREBASE_PATH;
+    }
+
+    function requestUrl() {
+      const base = FIREBASE_URL.replace(/\/+$/, '');
+      const path = FIREBASE_PATH.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean).map(encodeURIComponent).join('/');
+      return new URL(`${base}/${path}.json`);
+    }
+
+    function numberOrNull(value) {
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      if (typeof value === 'string' && value.trim() !== '') {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    }
+
+    function timestampMs(value) {
+      const parsed = numberOrNull(value);
+      if (parsed === null) return Date.now();
+      return parsed < 1e12 ? parsed * 1000 : parsed;
+    }
+
+    function formatNumber(value, decimals) {
+      return value === null ? '—' : value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+
+    function formatDateTime(time) {
+      if (!time) return 'รอข้อมูล…';
+      return new Intl.DateTimeFormat('th-TH', {
+        timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      }).format(new Date(time));
+    }
+
+    function formatChartTime(time, withDate = false) {
+      const options = withDate
+        ? { timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }
+        : { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      return new Intl.DateTimeFormat('th-TH', options).format(new Date(time));
+    }
+
+    function mergeStreamEvent(eventType, payload) {
+      const path = payload.path || '/';
+      if (path === '/') {
+        if (eventType === 'put' && payload.data === null) {
+          state.current = {};
+          showNoData();
+          return;
+        }
+        if (eventType === 'put') state.current = payload.data && typeof payload.data === 'object' ? payload.data : {};
+        else if (payload.data && typeof payload.data === 'object') Object.assign(state.current, payload.data);
+      } else {
+        const parts = path.replace(/^\/+/, '').split('/');
+        if (parts.length === 1) state.current[parts[0]] = payload.data;
+      }
+      consumeLatest(state.current);
+    }
+
+    function resetDashboard() {
+      state.current = {};
+      state.samples = [];
+      state.lastSignature = '';
+      state.lastDataTime = null;
+      el.dataTime.textContent = 'รอข้อมูล…';
+      el.dataAge.textContent = 'กำลังอ่านข้อมูลจาก Path ที่เลือก';
+      Object.entries(metrics).forEach(([metric, config]) => {
+        const valueElement = el[`${metric}Value`];
+        valueElement.replaceChildren(document.createTextNode('—'));
+        const unit = document.createElement('span');
+        unit.className = 'metric-unit';
+        unit.textContent = config.unit;
+        valueElement.appendChild(unit);
+        el[`${metric}Trend`].textContent = 'รอข้อมูล';
+        el[`${metric}Trend`].className = 'trend';
+        el[`${metric}Range`].textContent = 'ต่ำสุด — · สูงสุด —';
+        el[`${metric}ChartLast`].textContent = `— ${config.unit}`;
+      });
+      renderCharts();
+    }
+
+    function showNoData() {
+      setConnection('ไม่พบข้อมูลที่ Path นี้', 'error');
+      el.dataTime.textContent = 'ไม่มีข้อมูล';
+      el.dataAge.textContent = 'ตรวจสอบ Path และการส่งข้อมูลจาก ESP32';
+    }
+
+    function consumeLatest(data) {
+      if (!data || typeof data !== 'object') return;
+      const sample = {
+        time: timestampMs(data.timestamp),
+        temp: numberOrNull(data.temp),
+        humi: numberOrNull(data.humi),
+        light: numberOrNull(data.light)
+      };
+      if (sample.temp === null && sample.humi === null && sample.light === null) return;
+
+      const signature = `${data.timestamp ?? ''}|${sample.temp}|${sample.humi}|${sample.light}`;
+      const previous = state.samples.at(-1) || null;
+      if (signature === state.lastSignature) {
+        state.lastDataTime = sample.time;
+        updateAge();
+        return;
+      }
+
+      if (previous && previous.time === sample.time) state.samples[state.samples.length - 1] = sample;
+      else state.samples.push(sample);
+      if (state.samples.length > 120) state.samples.splice(0, state.samples.length - 120);
+      state.lastSignature = signature;
+      state.lastDataTime = sample.time;
+      updateDashboard(sample, previous);
+      renderCharts();
+    }
+
+    function updateDashboard(sample, previous) {
+      el.dataTime.textContent = formatDateTime(sample.time);
+      updateAge();
+      Object.entries(metrics).forEach(([metric, config]) => {
+        const value = sample[metric];
+        const valueElement = el[`${metric}Value`];
+        valueElement.replaceChildren(document.createTextNode(formatNumber(value, config.decimals)));
+        const unit = document.createElement('span');
+        unit.className = 'metric-unit';
+        unit.textContent = config.unit;
+        valueElement.appendChild(unit);
+        valueElement.classList.remove('changed');
+        requestAnimationFrame(() => valueElement.classList.add('changed'));
+
+        const trend = el[`${metric}Trend`];
+        const previousValue = previous ? previous[metric] : null;
+        if (value === null || previousValue === null || previousValue === undefined) {
+          trend.textContent = 'ค่าล่าสุด';
+          trend.className = 'trend';
+        } else {
+          const difference = value - previousValue;
+          const arrow = difference > 0 ? '▲' : difference < 0 ? '▼' : '●';
+          trend.textContent = `${arrow} ${formatNumber(Math.abs(difference), config.decimals)}`;
+          trend.className = `trend ${difference > 0 ? 'up' : difference < 0 ? 'down' : ''}`.trim();
+        }
+
+        const values = state.samples.map(item => item[metric]).filter(item => item !== null);
+        const min = values.length ? Math.min(...values) : null;
+        const max = values.length ? Math.max(...values) : null;
+        el[`${metric}Range`].textContent = `ต่ำสุด ${formatNumber(min, config.decimals)} · สูงสุด ${formatNumber(max, config.decimals)}`;
+        el[`${metric}ChartLast`].textContent = `${formatNumber(value, config.decimals)} ${config.unit}`;
+      });
+    }
+
+    function updateAge() {
+      if (!state.lastDataTime) return;
+      const seconds = Math.round((Date.now() - state.lastDataTime) / 1000);
+      if (seconds < -2) el.dataAge.textContent = `เวลาข้อมูลเร็วกว่าเครื่อง ${Math.abs(seconds)} วินาที`;
+      else if (seconds <= 1) el.dataAge.textContent = 'เพิ่งได้รับข้อมูล';
+      else el.dataAge.textContent = `ข้อมูลเมื่อ ${seconds.toLocaleString('th-TH')} วินาทีที่แล้ว`;
+    }
+
+    function traceSeries(ctx, points, smooth) {
+      if (!points.length) return;
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let index = 1; index < points.length; index += 1) {
+        const previous = points[index - 1];
+        const current = points[index];
+        if (smooth && points.length > 2) {
+          const middleX = (previous.x + current.x) / 2;
+          ctx.bezierCurveTo(middleX, previous.y, middleX, current.y, current.x, current.y);
+        } else {
+          ctx.lineTo(current.x, current.y);
+        }
+      }
+    }
+
+    function drawChart(metric) {
+      const canvas = el[`${metric}Chart`];
+      const tooltip = el[`${metric}Tooltip`];
+      const config = metrics[metric];
+      const series = state.samples.filter(item => item[metric] !== null).map(item => ({ time: item.time, value: item[metric] }));
+      const box = canvas.parentElement;
+      const width = Math.max(280, box.clientWidth);
+      const height = Math.max(200, box.clientHeight);
+      const ratio = Math.min(window.devicePixelRatio || 1, 2.5);
+      canvas.width = Math.round(width * ratio);
+      canvas.height = Math.round(height * ratio);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      tooltip.classList.add('hidden');
+
+      if (!series.length) {
+        ctx.fillStyle = '#7689a2';
+        ctx.font = '12px "Segoe UI", Tahoma, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('กำลังรอข้อมูลจาก Firebase…', width / 2, height / 2);
+        state.chartModels[metric] = { points: [], width };
+        return;
+      }
+
+      const margin = { left: 53, right: 16, top: 14, bottom: 35 };
+      const plotWidth = width - margin.left - margin.right;
+      const plotHeight = height - margin.top - margin.bottom;
+      const values = series.map(item => item.value);
+      let min = Math.min(...values);
+      let max = Math.max(...values);
+      const spread = max - min;
+      const padding = spread === 0 ? Math.max(Math.abs(max) * .06, 1) : spread * .14;
+      min -= padding;
+      max += padding;
+
+      ctx.font = '10px "Segoe UI", Tahoma, sans-serif';
+      for (let i = 0; i <= 4; i += 1) {
+        const y = margin.top + plotHeight * i / 4;
+        const label = max - (max - min) * i / 4;
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(148,163,184,.13)';
+        ctx.lineWidth = 1;
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(width - margin.right, y);
+        ctx.stroke();
+        ctx.fillStyle = '#70829a';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label.toLocaleString('en-US', { maximumFractionDigits: config.decimals }), margin.left - 8, y);
+      }
+
+      const points = series.map((item, index) => ({
+        ...item,
+        x: series.length === 1 ? margin.left + plotWidth / 2 : margin.left + plotWidth * index / (series.length - 1),
+        y: margin.top + (max - item.value) / (max - min) * plotHeight
+      }));
+      const smooth = SMOOTH_CHART;
+
+      const gradient = ctx.createLinearGradient(0, margin.top, 0, height - margin.bottom);
+      gradient.addColorStop(0, config.fill);
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath();
+      traceSeries(ctx, points, smooth);
+      ctx.lineTo(points.at(-1).x, height - margin.bottom);
+      ctx.lineTo(points[0].x, height - margin.bottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.beginPath();
+      traceSeries(ctx, points, smooth);
+      ctx.strokeStyle = config.color;
+      ctx.lineWidth = 2.3;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowColor = config.color;
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (points.length <= 70) {
+        points.forEach((point, index) => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, index === points.length - 1 ? 4 : 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = index === points.length - 1 ? config.color : '#0c1a2d';
+          ctx.fill();
+          ctx.strokeStyle = config.color;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        });
+      }
+
+      const labelIndexes = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
+      labelIndexes.forEach((index, position) => {
+        const point = points[index];
+        ctx.fillStyle = '#70829a';
+        ctx.textBaseline = 'bottom';
+        ctx.textAlign = position === 0 ? 'left' : position === labelIndexes.length - 1 ? 'right' : 'center';
+        ctx.fillText(formatChartTime(point.time), point.x, height - 7);
+      });
+      state.chartModels[metric] = { points, width };
+    }
+
+    function renderCharts() {
+      Object.keys(metrics).forEach(drawChart);
+    }
+
+    function bindTooltip(metric) {
+      const canvas = el[`${metric}Chart`];
+      const tooltip = el[`${metric}Tooltip`];
+      canvas.addEventListener('mousemove', event => {
+        const model = state.chartModels[metric];
+        if (!model || !model.points.length) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const point = model.points.reduce((best, item) => Math.abs(item.x - x) < Math.abs(best.x - x) ? item : best);
+        const config = metrics[metric];
+        tooltip.replaceChildren();
+        const strong = document.createElement('strong');
+        strong.textContent = `${formatNumber(point.value, config.decimals)} ${config.unit}`;
+        const time = document.createElement('span');
+        time.textContent = formatDateTime(point.time);
+        tooltip.append(strong, time);
+        tooltip.style.left = `${Math.max(70, Math.min(model.width - 70, point.x))}px`;
+        tooltip.style.top = `${Math.max(48, point.y)}px`;
+        tooltip.classList.remove('hidden');
+      });
+      canvas.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+    }
+
+    function cleanConnection() {
+      if (state.source) state.source.close();
+      if (state.pollTimer) clearInterval(state.pollTimer);
+      if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+      state.source = null;
+      state.pollTimer = null;
+      state.reconnectTimer = null;
+    }
+
+    async function pollOnce() {
+      try {
+        const url = requestUrl();
+        const response = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload && payload.error ? payload.error : `HTTP ${response.status}`);
+        if (payload === null || typeof payload !== 'object') {
+          showNoData();
+          return;
+        }
+        consumeLatest(payload);
+        setConnection('ออนไลน์ • ตรวจทุก 2 วินาที', 'live');
+      } catch (error) {
+        setConnection(`เชื่อมต่อไม่ได้ • ${error.message}`, 'error');
+      }
+    }
+
+    function startPolling() {
+      if (state.pollTimer) clearInterval(state.pollTimer);
+      setConnection('กำลังเชื่อมต่อแบบสำรอง…', 'connecting');
+      pollOnce();
+      state.pollTimer = setInterval(pollOnce, 2000);
+    }
+
+    function connect() {
+      cleanConnection();
+      updateDeviceIdentity();
+      resetDashboard();
+      setConnection('กำลังเชื่อมต่อ Firebase…', 'connecting');
+
+      try {
+        if (!window.EventSource) return startPolling();
+        const source = new EventSource(requestUrl().toString());
+        state.source = source;
+        source.addEventListener('open', () => setConnection('LIVE • เชื่อมต่อ Firebase แล้ว', 'live'));
+        ['put', 'patch'].forEach(eventType => source.addEventListener(eventType, event => {
+          try { mergeStreamEvent(eventType, JSON.parse(event.data)); }
+          catch (error) { setConnection(`ข้อมูลไม่ถูกต้อง • ${error.message}`, 'error'); }
+        }));
+        const fallback = message => {
+          if (state.source !== source) return;
+          source.close();
+          state.source = null;
+          setConnection(message, 'connecting');
+          state.reconnectTimer = setTimeout(startPolling, 800);
+        };
+        source.addEventListener('cancel', () => fallback('Rules ไม่อนุญาต • กำลังตรวจสอบ'));
+        source.addEventListener('auth_revoked', () => fallback('Auth token ใช้ไม่ได้ • กำลังตรวจสอบ'));
+        source.onerror = () => fallback('สตรีมขัดข้อง • เปลี่ยนเป็นการตรวจอัตโนมัติ');
+      } catch (error) {
+        setConnection(`ตั้งค่าไม่ถูกต้อง • ${error.message}`, 'error');
+      }
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+    }
+
+    applyTheme('light');
+
+    Object.keys(metrics).forEach(bindTooltip);
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(renderCharts, 120);
+    });
+    window.addEventListener('beforeunload', cleanConnection);
+    setInterval(updateAge, 1000);
+
+    renderCharts();
+    connect();
+  </script>
+
+
+</body></html>
